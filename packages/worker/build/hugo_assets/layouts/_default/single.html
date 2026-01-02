@@ -1,43 +1,101 @@
 {{ define "main" }}
-<article class="panel">
-    <div class="panel-header">
-        <h1>{{ .Title }}</h1>
-        <p class="meta">
-            发布于
-            <time class="local-datetime" datetime="{{ .Date.Format `2006-01-02T15:04:05Z07:00` }}">
-                {{ .Date.Format `2006-01-02 15:04` }}
-            </time>
-            ·
-            分类：{{ if .Params.category }}
-            <a href="/categories/{{ .Params.category }}/">{{ .Params.category_name }}</a>
-            {{ else }}
-            {{ .Params.category_name }}
+<article>
+    <header class="single-header">
+        <h1 class="single-title">{{ .Title }}</h1>
+        <div class="single-meta">
+            <div class="meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <time class="local-datetime" datetime="{{ .Date.Format `2006-01-02T15:04:05Z07:00` }}">
+                    {{ .Date.Format `2006-01-02 15:04` }}
+                </time>
+            </div>
+
+            {{ if .Params.category }}
+            <div class="meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <a href="/categories/{{ .Params.category }}/" class="hover:text-primary">{{ .Params.category_name }}</a>
+            </div>
             {{ end }}
-        </p>
-    </div>
+
+            <div class="meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>{{ .Params.publisher }}</span>
+            </div>
+        </div>
+    </header>
 
     {{ with or .Params.cover_image_path .Params.cover_image_url }}
-    <img class="cover" src="{{ . | relURL }}" alt="cover">
+    <div
+        style="margin-bottom: 2rem; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+        <img src="{{ . | relURL }}" alt="cover"
+            style="width: 100%; display: block; max-height: 500px; object-fit: cover;">
+    </div>
     {{ end }}
 
-    <div class="content">
-        {{ .Content }}
+    <div class="magnet-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--primary);">
+            <path d="M10.5 21h3" />
+            <path
+                d="M5 13a7 7 0 1 1 14 0V6a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4a3 3 0 0 1-6 0V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v7z" />
+        </svg>
+        <div class="magnet-link">{{ .Params.magnet_uri }}</div>
+        <a href="{{ .Params.magnet_uri | safeURL }}" class="btn-icon" title="Open Magnet">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+        </a>
     </div>
 
-    <div class="resource-info">
-        <p><strong>Magnet URI:</strong> <code>{{ .Params.magnet_uri }}</code></p>
-        <p><strong>Hash:</strong> {{ .Params.magnet_hash }}</p>
-        <p><strong>DHT:</strong> {{ default "Unknown" .Params.dht_status }}{{ with .Params.last_dht_check }} · Last
-            check: {{ . }}{{ end }}</p>
-        <p><strong>发布者:</strong> {{ .Params.publisher }}</p>
+    <div class="info-grid">
+        <div class="info-item">
+            <h3>Info Hash</h3>
+            <p class="mono" style="font-size: 0.8125rem;">{{ .Params.magnet_hash }}</p>
+        </div>
+        <div class="info-item">
+            <h3>Network Status</h3>
+            <p>
+                {{ $s := default "Unknown" .Params.dht_status }}
+                {{ $cls := "badge-gray" }}
+                {{ if eq $s "Active" }}{{ $cls = "badge-green" }}{{ end }}
+                {{ if eq $s "Stale" }}{{ $cls = "badge-yellow" }}{{ end }}
+                <span class="badge {{ $cls }}">{{ $s }}</span>
+                {{ with .Params.last_dht_check }}<span
+                    style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">Checked: {{ . }}</span>{{
+                end }}
+            </p>
+        </div>
         {{ if .Params.tags }}
-        <div class="tags" style="margin-top: 1rem;">
-            {{ range .Params.tags }}
-            {{ $t := replace (. | urlquery) "+" "%20" }}
-            <a class="tag" href="/tags/{{ $t }}/">{{ . }}</a>
-            {{ end }}
+        <div class="info-item" style="grid-column: 1 / -1;">
+            <h3>Tags</h3>
+            <div class="resource-tags">
+                {{ range .Params.tags }}
+                {{ $t := replace (. | urlquery) "+" "%20" }}
+                <a class="tag" href="/tags/{{ $t }}/">{{ . }}</a>
+                {{ end }}
+            </div>
         </div>
         {{ end }}
+    </div>
+
+    <div class="content" style="margin-top: 2rem; font-size: 1.0625rem; line-height: 1.7;">
+        {{ .Content }}
     </div>
 </article>
 {{ end }}

@@ -25,30 +25,37 @@
         const title = escapeHtml(item.title || "");
         const url = item.url || "#";
         const magnet = item.magnet_uri || "";
-        const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
+        const dhtStatus = item.dht_status || "Unknown";
+        const tags = Array.isArray(item.tags) ? item.tags.slice(0, 5) : [];
         const tagHtml = tags.length
-            ? `<div class="title-tags">${tags.map((t) => `<a class="tag" href="/tags/${encodeURIComponent(t)}/">${escapeHtml(t)}</a>`).join("")}</div>`
+            ? `<div class="resource-tags">${tags.map((t) => `<a class="tag" href="/tags/${encodeURIComponent(t)}/">${escapeHtml(t)}</a>`).join("")}</div>`
             : "";
         const dlHtml = magnet
-            ? `<a class="dl-link" href="${escapeHtml(magnet)}" title="打开 Magnet">
-                <svg class="dl-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4.01 4a1 1 0 0 1-1.38 0l-4.01-4a1 1 0 0 1 1.4-1.42L11 13.59V4a1 1 0 0 1 1-1Zm-7 16a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Z"/>
-                </svg>
+            ? `<a class="btn-icon" href="${escapeHtml(magnet)}" title="Magnet Link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </a>`
             : "";
+
+        let badgeClass = "badge-gray";
+        if (dhtStatus === "Active") badgeClass = "badge-green";
+        if (dhtStatus === "Stale") badgeClass = "badge-yellow";
+
         return `
           <tr>
-            <td class="publisher">
-              <div class="publisher-name">${publisher}</div>
-              <div class="publisher-time">
+            <td>
+              <div class="meta-publisher">${publisher}</div>
+              <div class="meta-date">
                 <time class="relative-time" datetime="${published}">${escapeHtml(published ? published.slice(0, 10) : "")}</time>
               </div>
             </td>
-            <td class="title-cell">
-              <a class="title-link" href="${url}">${title}</a>
+            <td class="cell-title">
+              <a class="resource-title" href="${url}">${title}</a>
               ${tagHtml}
             </td>
-            <td class="dl">${dlHtml}</td>
+            <td style="text-align: center;">
+                <span class="badge ${badgeClass}">${escapeHtml(dhtStatus)}</span>
+            </td>
+            <td style="text-align: center;">${dlHtml}</td>
           </tr>
         `;
     }

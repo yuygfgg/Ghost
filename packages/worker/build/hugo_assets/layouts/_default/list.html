@@ -1,94 +1,70 @@
 {{ define "title" }}首页{{ end }}
 {{ define "main" }}
-<section class="panel table-panel">
-    <div class="table-toolbar">
-        <div class="table-toolbar-left">
-            <h2>首页</h2>
-            <p class="subtitle">资源索引</p>
+<section class="table-panel">
+    <div class="toolbar" style="padding: 1rem 1.5rem; margin: 0; border-bottom: 1px solid var(--border-color);">
+        <div class="toolbar-left">
+            <h2 style="font-size: 1.125rem;">资源索引</h2>
         </div>
-        <div class="table-toolbar-right">
-            <div class="search-box compact">
-                <input type="search" id="search-input" placeholder="搜索标题、标签或关键字..." aria-label="搜索">
-                <div id="search-meta" class="meta">正在初始化索引...</div>
+        <div class="search-box">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="search-input" placeholder="搜索资源..." aria-label="搜索">
+            <div id="search-meta"
+                style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">
             </div>
         </div>
     </div>
 
-    <nav class="pagination pagination-top" aria-label="分页">
-        {{ $p := .Paginator }}
-        {{ $total := $p.TotalPages }}
-        {{ $cur := $p.PageNumber }}
-        {{ if gt $total 1 }}
-        {{ if $p.HasPrev }}<a class="page prev" href="{{ $p.Prev.URL }}">上一页</a>{{ else }}<span
-            class="page prev disabled">上一页</span>{{ end }}
-
-        {{ $first := $p.First }}
-        <a class="page{{ if eq $cur 1 }} active{{ end }}" href="{{ $first.URL }}">1</a>
-
-        {{ $window := 2 }}
-        {{ $start := cond (lt (sub $cur $window) 2) 2 (sub $cur $window) }}
-        {{ $end := cond (gt (add $cur $window) (sub $total 1)) (sub $total 1) (add $cur $window) }}
-
-        {{ if gt $start 2 }}<span class="page ellipsis">…</span>{{ end }}
-        {{ if ge $end $start }}
-        {{ range seq $start $end }}
-        {{ $pager := index $p.Pagers (sub . 1) }}
-        <a class="page{{ if eq . $cur }} active{{ end }}" href="{{ $pager.URL }}">{{ . }}</a>
-        {{ end }}
-        {{ end }}
-        {{ if lt $end (sub $total 1) }}<span class="page ellipsis">…</span>{{ end }}
-
-        {{ if gt $total 1 }}
-        {{ $last := $p.Last }}
-        <a class="page{{ if eq $cur $total }} active{{ end }}" href="{{ $last.URL }}">{{ $total }}</a>
-        {{ end }}
-        {{ if $p.HasNext }}<a class="page next" href="{{ $p.Next.URL }}">下一页</a>{{ else }}<span
-            class="page next disabled">下一页</span>{{ end }}
-        {{ end }}
-    </nav>
-
-    <div class="table-wrap" role="region" aria-label="资源列表" tabindex="0">
-        <table class="resource-table">
+    <div class="table-responsive">
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th class="col-publisher">发布者</th>
-                    <th class="col-title">标题</th>
-                    <th class="col-dht">DHT</th>
-                    <th class="col-dl">DL</th>
+                    <th class="col-meta">发布信息</th>
+                    <th class="col-title">标题 / 标签</th>
+                    <th class="col-dht">状态</th>
+                    <th class="col-dl">下载</th>
                 </tr>
             </thead>
-            <tbody id="search-results" aria-live="polite">
+            <tbody id="search-results">
+                {{ $p := .Paginator }}
                 {{ range $p.Pages }}
                 <tr>
-                    <td class="publisher">
-                        <div class="publisher-name">{{ .Params.publisher }}</div>
-                        <div class="publisher-time">
+                    <td>
+                        <div class="meta-publisher">{{ .Params.publisher }}</div>
+                        <div class="meta-date">
                             <time class="relative-time" datetime="{{ .Date.Format `2006-01-02T15:04:05Z07:00` }}">{{
                                 .Date.Format `2006-01-02` }}</time>
                         </div>
                     </td>
-                    <td class="title-cell">
-                        <a class="title-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
+                    <td class="cell-title">
+                        <a class="resource-title" href="{{ .RelPermalink }}">{{ .Title }}</a>
                         {{ if .Params.tags }}
-                        <div class="title-tags">
-                            {{ range first 3 .Params.tags }}
+                        <div class="resource-tags">
+                            {{ range first 5 .Params.tags }}
                             {{ $t := replace (. | urlquery) "+" "%20" }}
                             <a class="tag" href="/tags/{{ $t }}/">{{ . }}</a>
                             {{ end }}
                         </div>
                         {{ end }}
                     </td>
-                    <td class="dht">
+                    <td style="text-align: center;">
                         {{ $s := default "Unknown" .Params.dht_status }}
-                        <span class="dht-badge {{ if eq $s " Active" }}dht-active{{ else if eq $s "Stale" }}dht-stale{{
-                            else }}dht-unknown{{ end }}">{{ $s }}</span>
+                        {{ $cls := "badge-gray" }}
+                        {{ if eq $s "Active" }}{{ $cls = "badge-green" }}{{ end }}
+                        {{ if eq $s "Stale" }}{{ $cls = "badge-yellow" }}{{ end }}
+                        <span class="badge {{ $cls }}">{{ $s }}</span>
                     </td>
-                    <td class="dl">
+                    <td style="text-align: center;">
                         {{ if .Params.magnet_uri }}
-                        <a class="dl-link" href="{{ .Params.magnet_uri | safeURL }}" title="打开 Magnet">
-                            <svg class="dl-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path fill="currentColor"
-                                    d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4.01 4a1 1 0 0 1-1.38 0l-4.01-4a1 1 0 0 1 1.4-1.42L11 13.59V4a1 1 0 0 1 1-1Zm-7 16a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Z" />
+                        <a class="btn-icon" href="{{ .Params.magnet_uri | safeURL }}" title="Magnet Link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
                             </svg>
                         </a>
                         {{ end }}
@@ -97,6 +73,52 @@
                 {{ end }}
             </tbody>
         </table>
+    </div>
+
+    <!-- Pagination -->
+    <div style="padding: 1.5rem; border-top: 1px solid var(--border-color);">
+        <nav class="pagination" aria-label="分页">
+            {{ $p := .Paginator }}
+            {{ $total := $p.TotalPages }}
+            {{ $cur := $p.PageNumber }}
+
+            {{ if gt $total 1 }}
+            {{ if $p.HasPrev }}
+            <a class="page-link" href="{{ $p.Prev.URL }}">←</a>
+            {{ else }}
+            <span class="page-link disabled">←</span>
+            {{ end }}
+
+            {{ $first := $p.First }}
+            <a class="page-link{{ if eq $cur 1 }} active{{ end }}" href="{{ $first.URL }}">1</a>
+
+            {{ $window := 2 }}
+            {{ $start := cond (lt (sub $cur $window) 2) 2 (sub $cur $window) }}
+            {{ $end := cond (gt (add $cur $window) (sub $total 1)) (sub $total 1) (add $cur $window) }}
+
+            {{ if gt $start 2 }}<span class="page-link disabled">...</span>{{ end }}
+
+            {{ if ge $end $start }}
+            {{ range seq $start $end }}
+            {{ $pager := index $p.Pagers (sub . 1) }}
+            <a class="page-link{{ if eq . $cur }} active{{ end }}" href="{{ $pager.URL }}">{{ . }}</a>
+            {{ end }}
+            {{ end }}
+
+            {{ if lt $end (sub $total 1) }}<span class="page-link disabled">...</span>{{ end }}
+
+            {{ if gt $total 1 }}
+            {{ $last := $p.Last }}
+            <a class="page-link{{ if eq $cur $total }} active{{ end }}" href="{{ $last.URL }}">{{ $total }}</a>
+            {{ end }}
+
+            {{ if $p.HasNext }}
+            <a class="page-link" href="{{ $p.Next.URL }}">→</a>
+            {{ else }}
+            <span class="page-link disabled">→</span>
+            {{ end }}
+            {{ end }}
+        </nav>
     </div>
 </section>
 {{ end }}
