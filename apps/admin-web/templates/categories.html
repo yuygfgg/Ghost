@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+    <div class="card">
+        <div class="card-header">
+            <h2>分类树</h2>
+            <button id="refresh-tree" class="btn secondary" type="button">刷新</button>
+        </div>
+        <div id="category-tree" class="small"></div>
+        <div id="category-status" class="status" hidden></div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h2 id="category-form-title">创建/编辑分类</h2>
+            <button id="reset-category" class="btn secondary" type="button">重置</button>
+        </div>
+        <form id="category-form">
+            <input type="hidden" id="category-id">
+            <label for="cat-name">名称</label>
+            <input id="cat-name" required>
+
+            <label for="cat-slug">Slug</label>
+            <input id="cat-slug" required>
+
+            <label for="cat-parent">父级 (可选)</label>
+            <select id="cat-parent">
+                <option value="">(根节点)</option>
+            </select>
+
+            <label for="cat-sort">排序值</label>
+            <input id="cat-sort" type="number" value="0">
+
+            <div class="flex" style="margin-top:12px;">
+                <button type="submit" class="btn">保存</button>
+                <button id="delete-category" class="btn danger" type="button" style="margin-left:8px;">删除</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const treeEl = document.getElementById("category-tree");
+        const statusEl = document.getElementById("category-status");
+        const form = document.getElementById("category-form");
+        const formTitle = document.getElementById("category-form-title");
+        const resetBtn = document.getElementById("reset-category");
+        const deleteBtn = document.getElementById("delete-category");
+        const refreshBtn = document.getElementById("refresh-tree");
+        const field = (id) => document.getElementById(id);
+
+        let categories = [];
+        let editingId = null;
+
+        function buildTree(parentId = null, depth = 0) {
+            const children = categories.filter(c => (c.parent_id || null) === parentId);
+            if (!children.length) return "";
+            let html = "<ul>";
+            children
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .forEach(child => {
+                    html += `<li data-id="${child.id}">
+                    <span class="badge">${child.name}</span>
+                    <span class="muted">#${child.id}</span>
+                    <button class="link-btn small" data-edit="${child.id}">编辑</button>
+                </li>`;
+                    html += buildTree(child.id, depth + 1);
+                });
+            html += "</ul>";
+            return html;
+        }
+
+        function renderTree() {
+            treeEl.innerHTML = buildTree(null) || "<p class='muted'>暂无分类</p>";
+        }
+
+        function populateParentOptions() {
+            const select = field("cat-parent");
+            select.innerHTML = `<option value="">(根节点)</option>`;
+            categories.forEach(cat => {
+                const opt = document.createElement("option");
+                opt.value = cat.id;
+                opt.textContent = `${cat.name} (#${cat.id})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function resetForm() {
+            editingId = null;
+            formTitle.textContent = "创建分类";
+            form.reset();
+            field("cat-sort").value = 0;
+            GhostAdmin.showStatus(statusEl, "");
+        }
+
+        function fillForm(cat) {
+            editingId = cat.id;
+            formTitle.textContent = `编辑分类 #${cat.id}`;
+            field("category-id").value = cat.id;
+            field("cat-name").value = cat.name;
+            field("cat-slug").value = cat.slug;
+            field("cat-parent").value = cat.parent_id || "";
+            field("cat-sort").value = cat.sort_order ?? 0;
+        }
+
+        treeEl.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-edit]");
+            if (!btn) return;
+            const id = Number(btn.dataset.edit);
+            const cat = categories.find((c) => c.id === id);
+            if (cat) fillForm(cat);
+        });
+
+        resetBtn.addEventListener("click", resetForm);
+
+        deleteBtn.addEventListener("click", async () => {
+            if (!editingId) {
+                GhostAdmin.showStatus(statusEl, "请选择要删除的分类", "error");
+                return;
+            }
+            if (!confirm("确定删除该分类？须为叶子节点且无资源关联。")) return;
+            try {
+                await GhostAdmin.apiFetch(`/api/categories/${editingId}`, { method: "DELETE" });
+                GhostAdmin.showStatus(statusEl, "已删除分类", "success");
+                await loadData();
+                resetForm();
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "删除失败", "error");
+            }
+        });
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                name: field("cat-name").value.trim(),
+                slug: field("cat-slug").value.trim(),
+                parent_id: field("cat-parent").value ? Number(field("cat-parent").value) : null,
+                sort_order: Number(field("cat-sort").value) || 0,
+            };
+            try {
+                if (editingId) {
+                    await GhostAdmin.apiFetch(`/api/categories/${editingId}`, {
+                        method: "PUT",
+                        body: JSON.stringify(payload),
+                    });
+                    GhostAdmin.showStatus(statusEl, "分类已更新", "success");
+                } else {
+                    await GhostAdmin.apiFetch("/api/categories", {
+                        method: "POST",
+                        body: JSON.stringify(payload),
+                    });
+                    GhostAdmin.showStatus(statusEl, "分类已创建", "success");
+                }
+                await loadData();
+                resetForm();
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "保存失败", "error");
+            }
+        });
+
+        refreshBtn.addEventListener("click", loadData);
+
+        async function loadData() {
+            const principal = await GhostAdmin.requireAuth();
+            if (!principal) return;
+            try {
+                categories = await GhostAdmin.apiFetch("/api/categories/tree");
+                renderTree();
+                populateParentOptions();
+                GhostAdmin.showStatus(statusEl, "");
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "加载失败", "error");
+            }
+        }
+
+        await loadData();
+        resetForm();
+    });
+</script>
+{% endblock %}

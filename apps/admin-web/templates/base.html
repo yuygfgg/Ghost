@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Admin - {{ title or "控制台" }}</title>
+    <link rel="stylesheet" href="{{ url_for('admin-static', path='css/admin.css') }}">
+    <script defer src="{{ url_for('admin-static', path='js/admin.js') }}"></script>
+</head>
+
+<body data-page="{{ page }}">
+    {% if page != "login" %}
+    <header class="topbar">
+        <div class="brand">
+            <a href="/admin/dashboard">Ghost 管理后台</a>
+        </div>
+        <nav class="nav">
+            <a href="/admin/dashboard" class="{{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
+            <a href="/admin/resources" class="{{ 'active' if page == 'resources' else '' }}">资源</a>
+            <a href="/admin/categories" class="{{ 'active' if page == 'categories' else '' }}">分类</a>
+            <a href="/admin/teams" class="{{ 'active' if page == 'teams' else '' }}">团队</a>
+            <a href="/admin/system" class="{{ 'active' if page == 'system' else '' }}">系统</a>
+        </nav>
+        <div class="user-box">
+            <span data-user-info class="muted">验证中...</span>
+            <button id="logout-btn" type="button" class="link-btn">退出</button>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+
+</html>

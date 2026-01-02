@@ -1,0 +1,102 @@
+{{ define "title" }}首页{{ end }}
+{{ define "main" }}
+<section class="panel table-panel">
+    <div class="table-toolbar">
+        <div class="table-toolbar-left">
+            <h2>首页</h2>
+            <p class="subtitle">资源索引</p>
+        </div>
+        <div class="table-toolbar-right">
+            <div class="search-box compact">
+                <input type="search" id="search-input" placeholder="搜索标题、标签或关键字..." aria-label="搜索">
+                <div id="search-meta" class="meta">正在初始化索引...</div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="pagination pagination-top" aria-label="分页">
+        {{ $p := .Paginator }}
+        {{ $total := $p.TotalPages }}
+        {{ $cur := $p.PageNumber }}
+        {{ if gt $total 1 }}
+        {{ if $p.HasPrev }}<a class="page prev" href="{{ $p.Prev.URL }}">上一页</a>{{ else }}<span
+            class="page prev disabled">上一页</span>{{ end }}
+
+        {{ $first := $p.First }}
+        <a class="page{{ if eq $cur 1 }} active{{ end }}" href="{{ $first.URL }}">1</a>
+
+        {{ $window := 2 }}
+        {{ $start := cond (lt (sub $cur $window) 2) 2 (sub $cur $window) }}
+        {{ $end := cond (gt (add $cur $window) (sub $total 1)) (sub $total 1) (add $cur $window) }}
+
+        {{ if gt $start 2 }}<span class="page ellipsis">…</span>{{ end }}
+        {{ if ge $end $start }}
+        {{ range seq $start $end }}
+        {{ $pager := index $p.Pagers (sub . 1) }}
+        <a class="page{{ if eq . $cur }} active{{ end }}" href="{{ $pager.URL }}">{{ . }}</a>
+        {{ end }}
+        {{ end }}
+        {{ if lt $end (sub $total 1) }}<span class="page ellipsis">…</span>{{ end }}
+
+        {{ if gt $total 1 }}
+        {{ $last := $p.Last }}
+        <a class="page{{ if eq $cur $total }} active{{ end }}" href="{{ $last.URL }}">{{ $total }}</a>
+        {{ end }}
+        {{ if $p.HasNext }}<a class="page next" href="{{ $p.Next.URL }}">下一页</a>{{ else }}<span
+            class="page next disabled">下一页</span>{{ end }}
+        {{ end }}
+    </nav>
+
+    <div class="table-wrap" role="region" aria-label="资源列表" tabindex="0">
+        <table class="resource-table">
+            <thead>
+                <tr>
+                    <th class="col-publisher">发布者</th>
+                    <th class="col-title">标题</th>
+                    <th class="col-dht">DHT</th>
+                    <th class="col-dl">DL</th>
+                </tr>
+            </thead>
+            <tbody id="search-results" aria-live="polite">
+                {{ range $p.Pages }}
+                <tr>
+                    <td class="publisher">
+                        <div class="publisher-name">{{ .Params.publisher }}</div>
+                        <div class="publisher-time">
+                            <time class="relative-time" datetime="{{ .Date.Format " 2006-01-02T15:04:05Z07:00" }}">{{
+                                .Date.Format "2006-01-02" }}</time>
+                        </div>
+                    </td>
+                    <td class="title-cell">
+                        <a class="title-link" href="{{ .RelPermalink }}">{{ .Title }}</a>
+                        {{ if .Params.tags }}
+                        <div class="title-tags">
+                            {{ range first 3 .Params.tags }}
+                            {{ $t := replace (. | urlquery) "+" "%20" }}
+                            <a class="tag" href="/tags/{{ $t }}/">{{ . }}</a>
+                            {{ end }}
+                        </div>
+                        {{ end }}
+                    </td>
+                    <td class="dht">
+                        {{ $s := default "Unknown" .Params.dht_status }}
+                        <span class="dht-badge {{ if eq $s " Active" }}dht-active{{ else if eq $s "Stale" }}dht-stale{{
+                            else }}dht-unknown{{ end }}">{{ $s }}</span>
+                    </td>
+                    <td class="dl">
+                        {{ if .Params.magnet_uri }}
+                        <a class="dl-link" href="{{ .Params.magnet_uri | safeURL }}" title="打开 Magnet">
+                            <svg class="dl-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path fill="currentColor"
+                                    d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4.01 4a1 1 0 0 1-1.38 0l-4.01-4a1 1 0 0 1 1.4-1.42L11 13.59V4a1 1 0 0 1 1-1Zm-7 16a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Z" />
+                            </svg>
+                        </a>
+                        {{ end }}
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{ end }}

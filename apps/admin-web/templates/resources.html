@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2>资源列表</h2>
+                <input id="resource-filter" type="search" placeholder="搜索标题或标签" style="max-width: 220px;">
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>分类</th>
+                        <th>团队</th>
+                        <th>发布</th>
+                        <th>DHT</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="resource-rows"></tbody>
+            </table>
+            <div id="resources-status" class="status" hidden></div>
+        </div>
+    </div>
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2 id="resource-form-title">新建资源</h2>
+                <button id="reset-form" class="btn secondary" type="button">重置</button>
+            </div>
+            <form id="resource-form">
+                <input type="hidden" id="resource-id">
+                <label for="title">标题</label>
+                <input id="title" required>
+
+                <label for="magnet_uri">Magnet URI</label>
+                <textarea id="magnet_uri" required></textarea>
+
+                <label for="category_id">分类</label>
+                <select id="category_id" required></select>
+
+                <label for="tags">标签 (逗号分隔)</label>
+                <input id="tags" placeholder="tag1, tag2">
+
+                <label for="cover_image_url">封面图 URL (可选)</label>
+                <input id="cover_image_url" placeholder="https://example.com/cover.jpg">
+
+                <label for="team_id">发布身份</label>
+                <select id="team_id">
+                    <option value="">以个人身份</option>
+                </select>
+
+                <label for="published_at">发布时间 (可选)</label>
+                <input id="published_at" type="datetime-local">
+
+                <label for="content_markdown">内容 (Markdown)</label>
+                <textarea id="content_markdown"></textarea>
+                <div class="preview small" id="markdown-preview">预览将在此显示</div>
+
+                <button type="submit" class="btn" style="margin-top:12px;">保存</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const rowsEl = document.getElementById("resource-rows");
+        const statusEl = document.getElementById("resources-status");
+        const filterEl = document.getElementById("resource-filter");
+        const form = document.getElementById("resource-form");
+        const formTitle = document.getElementById("resource-form-title");
+        const resetBtn = document.getElementById("reset-form");
+        const previewEl = document.getElementById("markdown-preview");
+        const teamInput = document.getElementById("team_id");
+
+        const field = (id) => document.getElementById(id);
+        let resources = [];
+        let categories = [];
+        let editingId = null;
+        let principal = null;
+        let teams = [];
+
+        function renderPreview() {
+            const text = field("content_markdown").value;
+            if (!text.trim()) {
+                previewEl.textContent = "预览将在此显示";
+                return;
+            }
+            const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            previewEl.innerHTML = escaped.replace(/\n/g, "<br>");
+        }
+
+        function populateCategories() {
+            const select = field("category_id");
+            select.innerHTML = "";
+            if (!categories.length) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                opt.textContent = "请先创建分类";
+                select.appendChild(opt);
+                return;
+            }
+            categories.forEach(cat => {
+                const opt = document.createElement("option");
+                opt.value = cat.id;
+                opt.textContent = `${cat.name} (#${cat.id})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function populateTeams() {
+            const select = field("team_id");
+            select.innerHTML = "";
+            const personal = document.createElement("option");
+            personal.value = "";
+            personal.textContent = "以个人身份";
+            select.appendChild(personal);
+            teams.forEach(team => {
+                const opt = document.createElement("option");
+                opt.value = team.id;
+                opt.textContent = `团队：${team.name} (#${team.id})`;
+                select.appendChild(opt);
+            });
+            if (principal?.role === "TeamMember" && principal.scope_team_id) {
+                select.value = principal.scope_team_id;
+                select.disabled = true;
+            } else {
+                select.disabled = false;
+            }
+        }
+
+        function renderResources(list) {
+            rowsEl.innerHTML = "";
+            list.forEach((res) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                <td>${res.title}</td>
+                <td>#${res.category_id}</td>
+                <td>${res.team_id || "个人"}</td>
+                <td>${GhostAdmin.formatDate(res.published_at)}</td>
+                <td><span class="badge ${res.dht_status === "Active" ? "success" : res.dht_status === "Stale" ? "warn" : ""}">${res.dht_status}</span></td>
+                <td class="small">
+                    <button class="btn secondary" data-edit="${res.id}" type="button">编辑</button>
+                </td>
+            `;
+                rowsEl.appendChild(tr);
+            });
+        }
+
+        function applyFilter() {
+            const keyword = filterEl.value.trim().toLowerCase();
+            if (!keyword) {
+                renderResources(resources);
+                return;
+            }
+            const filtered = resources.filter((r) => {
+                const tags = (r.tags || []).join(",").toLowerCase();
+                return r.title.toLowerCase().includes(keyword) || tags.includes(keyword);
+            });
+            renderResources(filtered);
+        }
+
+        function resetFormFields() {
+            editingId = null;
+            formTitle.textContent = "新建资源";
+            form.reset();
+            renderPreview();
+            if (principal?.role === "TeamMember" && principal.scope_team_id) {
+                field("team_id").value = principal.scope_team_id;
+                field("team_id").disabled = true;
+            } else {
+                field("team_id").disabled = false;
+            }
+        }
+
+        function fillForm(res) {
+            editingId = res.id;
+            formTitle.textContent = `编辑资源 #${res.id}`;
+            field("resource-id").value = res.id;
+            field("title").value = res.title;
+            field("magnet_uri").value = res.magnet_uri;
+            field("category_id").value = res.category_id;
+            field("tags").value = (res.tags || []).join(", ");
+            field("cover_image_url").value = res.cover_image_url || "";
+            field("team_id").value = res.team_id || "";
+            if (res.published_at) {
+                const dt = new Date(res.published_at);
+                field("published_at").value = dt.toISOString().slice(0, 16);
+            } else {
+                field("published_at").value = "";
+            }
+            field("content_markdown").value = res.content_markdown || "";
+            renderPreview();
+        }
+
+        rowsEl.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-edit]");
+            if (!btn) return;
+            const id = Number(btn.dataset.edit);
+            const res = resources.find((r) => r.id === id);
+            if (res) fillForm(res);
+        });
+
+        filterEl.addEventListener("input", applyFilter);
+        field("content_markdown").addEventListener("input", renderPreview);
+        resetBtn.addEventListener("click", resetFormFields);
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!principal) return;
+            const payload = {
+                title: field("title").value.trim(),
+                magnet_uri: field("magnet_uri").value.trim(),
+                category_id: field("category_id").value ? Number(field("category_id").value) : null,
+                tags: field("tags").value.split(",").map(t => t.trim()).filter(Boolean),
+                cover_image_url: field("cover_image_url").value.trim() || null,
+                team_id: field("team_id").value ? Number(field("team_id").value) : null,
+                published_at: field("published_at").value ? new Date(field("published_at").value).toISOString() : null,
+                content_markdown: field("content_markdown").value,
+            };
+            if (!payload.category_id) {
+                GhostAdmin.showStatus(statusEl, "请选择分类", "error");
+                return;
+            }
+            try {
+                if (editingId) {
+                    await GhostAdmin.apiFetch(`/api/resources/${editingId}`, {
+                        method: "PUT",
+                        body: JSON.stringify(payload),
+                    });
+                    GhostAdmin.showStatus(statusEl, "已更新资源", "success");
+                } else {
+                    await GhostAdmin.apiFetch("/api/resources", {
+                        method: "POST",
+                        body: JSON.stringify(payload),
+                    });
+                    GhostAdmin.showStatus(statusEl, "已创建资源", "success");
+                }
+                await loadData();
+                resetFormFields();
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "保存失败", "error");
+            }
+        });
+
+        async function loadData() {
+            principal = await GhostAdmin.requireAuth();
+            if (!principal) return;
+            try {
+                [categories, resources, teams] = await Promise.all([
+                    GhostAdmin.apiFetch("/api/categories/tree"),
+                    GhostAdmin.apiFetch("/api/resources"),
+                    GhostAdmin.apiFetch("/api/teams"),
+                ]);
+                populateCategories();
+                populateTeams();
+                renderResources(resources);
+                applyFilter();
+                GhostAdmin.showStatus(statusEl, "");
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "加载失败", "error");
+            }
+        }
+
+        await loadData();
+        resetFormFields();
+        renderPreview();
+    });
+</script>
+{% endblock %}

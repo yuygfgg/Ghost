@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <h2>生成 Publisher Token</h2>
+        <p class="muted small">仅 Admin 可用。用于邀请新的 Publisher。</p>
+        <form id="publisher-form">
+            <label for="publisher-name">显示名称 (可选)</label>
+            <input id="publisher-name" placeholder="Publisher">
+            <button type="submit" class="btn" style="margin-top:12px;">生成</button>
+        </form>
+        <div id="publisher-status" class="status" hidden></div>
+    </div>
+    <div class="card">
+        <h2>撤销 Token</h2>
+        <p class="muted small">仅 Admin 可用。输入需要撤销的原始 Token。</p>
+        <form id="revoke-form">
+            <label for="revoke-token">Token</label>
+            <textarea id="revoke-token" required></textarea>
+            <button type="submit" class="btn danger" style="margin-top:12px;">撤销</button>
+        </form>
+        <div id="revoke-status" class="status" hidden></div>
+    </div>
+    <div class="card">
+        <h2>下架资源</h2>
+        <p class="muted small">输入资源 ID 进行下架。仅 Admin 有效。</p>
+        <form id="takedown-form">
+            <label for="takedown-id">资源 ID</label>
+            <input id="takedown-id" type="number" required>
+            <button type="submit" class="btn danger" style="margin-top:12px;">下架</button>
+        </form>
+        <div id="takedown-status" class="status" hidden></div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const publisherForm = document.getElementById("publisher-form");
+        const publisherName = document.getElementById("publisher-name");
+        const publisherStatus = document.getElementById("publisher-status");
+
+        const revokeForm = document.getElementById("revoke-form");
+        const revokeToken = document.getElementById("revoke-token");
+        const revokeStatus = document.getElementById("revoke-status");
+
+        const takedownForm = document.getElementById("takedown-form");
+        const takedownId = document.getElementById("takedown-id");
+        const takedownStatus = document.getElementById("takedown-status");
+
+        let principal = await GhostAdmin.requireAuth();
+        if (!principal) return;
+        if (principal.role !== "Admin") {
+            [publisherForm, revokeForm, takedownForm].forEach(form => {
+                form.querySelectorAll("input,textarea,button").forEach(el => el.disabled = true);
+            });
+            GhostAdmin.showStatus(publisherStatus, "需要 Admin 角色", "error");
+            GhostAdmin.showStatus(revokeStatus, "需要 Admin 角色", "error");
+            GhostAdmin.showStatus(takedownStatus, "需要 Admin 角色", "error");
+            return;
+        }
+
+        publisherForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            try {
+                const res = await GhostAdmin.apiFetch("/api/admin/tokens/publisher", {
+                    method: "POST",
+                    body: JSON.stringify({ display_name: publisherName.value.trim() || "Publisher" }),
+                });
+                publisherStatus.hidden = false;
+                publisherStatus.dataset.type = "success";
+                publisherStatus.innerHTML = `<div><strong>Token:</strong> ${res.token}</div><div class="small muted">Hash: ${res.token_hash}</div>`;
+                publisherName.value = "";
+            } catch (err) {
+                GhostAdmin.showStatus(publisherStatus, err.data || "生成失败", "error");
+            }
+        });
+
+        revokeForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            try {
+                const res = await GhostAdmin.apiFetch("/api/admin/tokens/revoke", {
+                    method: "POST",
+                    body: JSON.stringify({ token: revokeToken.value.trim() }),
+                });
+                GhostAdmin.showStatus(revokeStatus, `已撤销，hash=${res.token_hash}`, "success");
+                revokeToken.value = "";
+            } catch (err) {
+                GhostAdmin.showStatus(revokeStatus, err.data || "撤销失败", "error");
+            }
+        });
+
+        takedownForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            try {
+                const res = await GhostAdmin.apiFetch(`/api/resources/${Number(takedownId.value)}/takedown`, {
+                    method: "POST",
+                });
+                GhostAdmin.showStatus(takedownStatus, `资源 #${res.id} 已下架`, "success");
+                takedownId.value = "";
+            } catch (err) {
+                GhostAdmin.showStatus(takedownStatus, err.data || "下架失败", "error");
+            }
+        });
+    });
+</script>
+{% endblock %}

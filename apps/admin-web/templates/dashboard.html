@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>系统总览</h2>
+        <div class="muted small">自动刷新依赖浏览器，请保持页面活跃</div>
+    </div>
+    <div class="grid">
+        <div class="card">
+            <div class="card-header">
+                <h3>构建状态</h3>
+                <button id="trigger-build" class="btn" hidden>立即构建</button>
+            </div>
+            <div class="flex column small">
+                <div>待构建: <span id="pending-changes" class="badge">未知</span></div>
+                <div>原因: <span id="pending-reason" class="muted">—</span></div>
+                <div>上次构建: <span id="last-build">—</span></div>
+                <div>Commit: <span id="last-commit" class="muted">—</span></div>
+                <div>错误: <span id="last-error" class="muted">无</span></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>资源概况</h3>
+                <div class="flex">
+                    <button id="refresh-dashboard" class="btn secondary" type="button">刷新</button>
+                    <button id="trigger-dht-scan-all" class="btn warn" type="button" hidden>全量 DHT 扫描</button>
+                </div>
+            </div>
+            <div class="flex column small">
+                <div>总资源: <span id="resource-total" class="badge"></span></div>
+                <div>活跃: <span id="resource-active" class="badge success"></span></div>
+                <div>未知/观察: <span id="resource-unknown" class="badge warn"></span></div>
+                <div>下架: <span id="resource-takedown" class="badge error"></span></div>
+            </div>
+        </div>
+    </div>
+    <div id="dashboard-status" class="status" hidden></div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const statusEl = document.getElementById("dashboard-status");
+        const pendingEl = document.getElementById("pending-changes");
+        const reasonEl = document.getElementById("pending-reason");
+        const lastBuildEl = document.getElementById("last-build");
+        const lastCommitEl = document.getElementById("last-commit");
+        const lastErrorEl = document.getElementById("last-error");
+        const totalEl = document.getElementById("resource-total");
+        const activeEl = document.getElementById("resource-active");
+        const unknownEl = document.getElementById("resource-unknown");
+        const takedownEl = document.getElementById("resource-takedown");
+        const triggerBtn = document.getElementById("trigger-build");
+        const refreshBtn = document.getElementById("refresh-dashboard");
+        const dhtScanAllBtn = document.getElementById("trigger-dht-scan-all");
+
+        let principal = null;
+
+        async function loadData() {
+            principal = await GhostAdmin.requireAuth();
+            if (!principal) return;
+            try {
+                const [build, resources] = await Promise.all([
+                    GhostAdmin.apiFetch("/api/build/status"),
+                    GhostAdmin.apiFetch("/api/resources"),
+                ]);
+                pendingEl.textContent = build.pending_changes ? "是" : "否";
+                pendingEl.className = build.pending_changes ? "badge warn" : "badge";
+                reasonEl.textContent = build.pending_reason || "—";
+                lastBuildEl.textContent = GhostAdmin.formatDate(build.last_build_at);
+                lastCommitEl.textContent = build.last_build_commit || "—";
+                lastErrorEl.textContent = build.last_error || "无";
+
+                const active = resources.filter(r => r.dht_status === "Active").length;
+                const stale = resources.filter(r => r.dht_status === "Stale").length;
+                const takedown = resources.filter(r => r.takedown_at).length;
+                totalEl.textContent = resources.length;
+                activeEl.textContent = active;
+                unknownEl.textContent = resources.length - active - stale - takedown;
+                takedownEl.textContent = takedown;
+
+                GhostAdmin.showStatus(statusEl, "");
+                if (principal.role === "Admin") {
+                    triggerBtn.hidden = false;
+                    dhtScanAllBtn.hidden = false;
+                }
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "加载失败", "error");
+            }
+        }
+
+        triggerBtn?.addEventListener("click", async () => {
+            try {
+                await GhostAdmin.apiFetch("/api/build/trigger", { method: "POST" });
+                GhostAdmin.showStatus(statusEl, "已请求构建", "success");
+                loadData();
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "触发失败", "error");
+            }
+        });
+
+        refreshBtn?.addEventListener("click", loadData);
+
+        dhtScanAllBtn?.addEventListener("click", async () => {
+            try {
+                await GhostAdmin.apiFetch("/api/admin/dht/scan-all", { method: "POST" });
+                GhostAdmin.showStatus(statusEl, "已开始全量 DHT 扫描（后台执行）", "success");
+                loadData();
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "触发失败", "error");
+            }
+        });
+
+        loadData();
+    });
+</script>
+{% endblock %}

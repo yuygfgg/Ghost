@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <div class="card-header">
+            <h2>团队列表</h2>
+            <button id="refresh-teams" class="btn secondary" type="button">刷新</button>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名称</th>
+                    <th>创建时间</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="team-rows"></tbody>
+        </table>
+        <div id="teams-status" class="status" hidden></div>
+    </div>
+    <div class="card">
+        <h2>创建团队</h2>
+        <p class="muted small">仅 Publisher 角色可创建团队。</p>
+        <form id="team-form">
+            <label for="team-name">团队名称</label>
+            <input id="team-name" required>
+            <button type="submit" class="btn" style="margin-top: 12px;">创建</button>
+        </form>
+        <div id="invite-box" class="status" hidden></div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const rowsEl = document.getElementById("team-rows");
+        const statusEl = document.getElementById("teams-status");
+        const refreshBtn = document.getElementById("refresh-teams");
+        const form = document.getElementById("team-form");
+        const inviteBox = document.getElementById("invite-box");
+        const teamNameInput = document.getElementById("team-name");
+
+        let principal = null;
+        let teams = [];
+
+        function renderTeams() {
+            rowsEl.innerHTML = "";
+            if (!teams.length) {
+                rowsEl.innerHTML = `<tr><td colspan="4" class="muted">暂无团队</td></tr>`;
+                return;
+            }
+            teams.forEach(team => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                <td>#${team.id}</td>
+                <td>${team.name}</td>
+                <td>${GhostAdmin.formatDate(team.created_at)}</td>
+                <td>
+                    ${principal?.role === "Publisher" && principal?.token_hash === team.owner_token_hash ? `<button class="btn secondary" data-invite="${team.id}" type="button">生成邀请</button>` : ""}
+                </td>
+            `;
+                rowsEl.appendChild(tr);
+            });
+        }
+
+        rowsEl.addEventListener("click", async (e) => {
+            const btn = e.target.closest("[data-invite]");
+            if (!btn) return;
+            const teamId = Number(btn.dataset.invite);
+            try {
+                const res = await GhostAdmin.apiFetch(`/api/teams/${teamId}/invites`, { method: "POST" });
+                inviteBox.hidden = false;
+                inviteBox.dataset.type = "success";
+                inviteBox.innerHTML = `
+                <div><strong>邀请 Token:</strong> ${res.token}</div>
+                <div class="small muted">Hash: ${res.token_hash}</div>
+            `;
+            } catch (err) {
+                GhostAdmin.showStatus(inviteBox, err.data || "生成失败", "error");
+            }
+        });
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (principal?.role !== "Publisher") {
+                GhostAdmin.showStatus(inviteBox, "仅 Publisher 可创建团队", "error");
+                return;
+            }
+            try {
+                await GhostAdmin.apiFetch("/api/teams", {
+                    method: "POST",
+                    body: JSON.stringify({ name: teamNameInput.value.trim() }),
+                });
+                GhostAdmin.showStatus(inviteBox, "团队已创建", "success");
+                teamNameInput.value = "";
+                await loadData();
+            } catch (err) {
+                GhostAdmin.showStatus(inviteBox, err.data || "创建失败", "error");
+            }
+        });
+
+        refreshBtn.addEventListener("click", loadData);
+
+        async function loadData() {
+            principal = await GhostAdmin.requireAuth();
+            if (!principal) return;
+            try {
+                teams = await GhostAdmin.apiFetch("/api/teams");
+                renderTeams();
+                GhostAdmin.showStatus(statusEl, "");
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.data || "加载失败", "error");
+            }
+        }
+
+        await loadData();
+    });
+</script>
+{% endblock %}

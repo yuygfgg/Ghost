@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width: 520px; margin: 48px auto;">
+    <h1>登录管理后台</h1>
+    <p class="muted small">粘贴有效的管理 Token</p>
+    <form id="login-form">
+        <label for="token-input">Token</label>
+        <textarea id="token-input" placeholder="Bearer Token" required></textarea>
+        <button type="submit" class="btn" style="margin-top: 12px; width: 100%;">登录</button>
+    </form>
+    <div id="login-status" class="status" hidden></div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("login-form");
+        const tokenInput = document.getElementById("token-input");
+        const statusEl = document.getElementById("login-status");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const token = tokenInput.value.trim();
+            if (!token) return;
+            GhostAdmin.showStatus(statusEl, "正在验证...", "info");
+            try {
+                const res = await fetch("/api/session/verify", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.detail || "验证失败");
+                }
+                await res.json();
+                GhostAdmin.setToken(token);
+                GhostAdmin.showStatus(statusEl, "验证成功，正在跳转...", "success");
+                window.location.assign("/admin/dashboard");
+            } catch (err) {
+                GhostAdmin.showStatus(statusEl, err.message || "验证失败", "error");
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>标签 | Ghost</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script defer src="/js/index-loader.js"></script>
+    <script defer src="/js/catalog.js"></script>
+    <script defer src="/js/relative-time.js"></script>
+</head>
+
+<body data-page="tags">
+    <header class="site-header">
+        <div class="container">
+            <div class="header-brand">
+                <h1><a href="/">Ghost Index</a></h1>
+                <p class="subtitle">标签导航</p>
+            </div>
+            <nav class="nav">
+                <a href="/">首页</a>
+                <a href="/tags/" class="active">标签</a>
+                <a href="/categories/">分类</a>
+            </nav>
+        </div>
+    </header>
+    <main class="container">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>标签云</h2>
+                <p class="subtitle">选择标签进行多维筛选</p>
+            </div>
+            <div id="tag-selected" class="selected-filters" style="margin-bottom: 1rem;"></div>
+            <div id="tag-cloud" class="tag-cloud" aria-label="标签云"></div>
+        </section>
+        <section class="panel">
+            <div class="panel-header">
+                <h3>匹配资源</h3>
+                <p id="tag-meta" class="subtitle"></p>
+            </div>
+            <div class="table-wrap" role="region" aria-label="匹配资源" tabindex="0">
+                <table class="resource-table">
+                    <thead>
+                        <tr>
+                            <th class="col-publisher">发布者</th>
+                            <th class="col-title">标题</th>
+                            <th class="col-dl">DL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tag-results" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <footer class="site-footer">
+        <div class="container">
+            <p>&copy; 2026 Ghost Build Pipeline.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

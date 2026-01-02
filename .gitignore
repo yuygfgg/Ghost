@@ -1,0 +1,9 @@
+.DS_Store
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+*.pyc
+*.db
+checks.json
+var/site-workdir/*
+.env
