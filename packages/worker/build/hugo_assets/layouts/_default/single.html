@@ -3,7 +3,11 @@
     <div class="panel-header">
         <h1>{{ .Title }}</h1>
         <p class="meta">
-            发布于 {{ .Date.Format "2006-01-02 15:04" }} ·
+            发布于
+            <time class="local-datetime" datetime="{{ .Date.Format `2006-01-02T15:04:05Z07:00` }}">
+                {{ .Date.Format `2006-01-02 15:04` }}
+            </time>
+            ·
             分类：{{ if .Params.category }}
             <a href="/categories/{{ .Params.category }}/">{{ .Params.category_name }}</a>
             {{ else }}

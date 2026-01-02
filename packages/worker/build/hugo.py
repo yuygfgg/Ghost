@@ -54,7 +54,7 @@ def ensure_hugo_scaffold(repo: SiteRepo, base_url: str = "/") -> None:
         repo.static_dir / "css" / "main.css",
         (assets_root / "static" / "css" / "main.css").read_text(encoding="utf-8"),
     )
-    for js_file in ["index-loader.js", "search.js", "catalog.js"]:
+    for js_file in ["index-loader.js", "search.js", "catalog.js", "relative-time.js"]:
         _write_if_changed(
             repo.static_dir / "js" / js_file,
             (assets_root / "static" / "js" / js_file).read_text(encoding="utf-8"),

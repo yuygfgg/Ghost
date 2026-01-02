@@ -1,5 +1,13 @@
 (() => {
     const formatter = new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" });
+    const localDateTimeFormatter = new Intl.DateTimeFormat("sv-SE", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    });
 
     function formatRelative(targetDate) {
         const diffMs = targetDate.getTime() - Date.now();
@@ -22,13 +30,27 @@
         return to(diffMs / year, "year");
     }
 
+    function formatLocalDateTime(date) {
+        // "sv-SE" yields a stable, ISO-like local-time representation: "YYYY-MM-DD HH:mm".
+        // Uses the user's local time zone by default.
+        return localDateTimeFormatter.format(date);
+    }
+
     function updateAll() {
-        const nodes = document.querySelectorAll("time.relative-time[datetime]");
-        for (const node of nodes) {
+        const relativeNodes = document.querySelectorAll("time.relative-time[datetime]");
+        for (const node of relativeNodes) {
             const raw = node.getAttribute("datetime") || "";
-            const parsed = new Date(raw);
+            const parsed = new Date(raw.trim());
             if (!Number.isFinite(parsed.getTime())) continue;
             node.textContent = formatRelative(parsed);
+        }
+
+        const localNodes = document.querySelectorAll("time.local-datetime[datetime]");
+        for (const node of localNodes) {
+            const raw = node.getAttribute("datetime") || "";
+            const parsed = new Date(raw.trim());
+            if (!Number.isFinite(parsed.getTime())) continue;
+            node.textContent = formatLocalDateTime(parsed);
         }
     }
 

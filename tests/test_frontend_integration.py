@@ -152,6 +152,9 @@ def test_public_site_end_to_end(tmp_path, monkeypatch):
     assert "const readyMeta" in search_js.text
     assert "initialMeta = meta().textContent" not in search_js.text
 
+    relative_time_js = public_client.get("/js/relative-time.js")
+    assert relative_time_js.status_code == 200
+
     # Search manifest and shard contain the resource and cover URL.
     manifest = public_client.get("/index/manifest.json")
     assert manifest.status_code == 200
