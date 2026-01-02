@@ -96,8 +96,9 @@
                 return;
             }
             initialHtml = resultContainer()?.innerHTML ?? "";
-            initialMeta = meta().textContent || `已就绪，共 ${documents.length} 条记录`;
-            meta().textContent = `已就绪，共 ${documents.length} 条记录`;
+            const readyMeta = `已就绪，共 ${documents.length} 条记录`;
+            initialMeta = readyMeta;
+            meta().textContent = readyMeta;
         } catch (err) {
             console.error("[search] Initialization failed", err);
             meta().textContent = err.message || "索引加载异常";

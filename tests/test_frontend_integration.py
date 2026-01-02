@@ -146,6 +146,12 @@ def test_public_site_end_to_end(tmp_path, monkeypatch):
     res = public_client.get("/")
     assert res.status_code == 200
 
+    # Search UI JS should not restore "syncing" state on clear.
+    search_js = public_client.get("/js/search.js")
+    assert search_js.status_code == 200
+    assert "const readyMeta" in search_js.text
+    assert "initialMeta = meta().textContent" not in search_js.text
+
     # Search manifest and shard contain the resource and cover URL.
     manifest = public_client.get("/index/manifest.json")
     assert manifest.status_code == 200
