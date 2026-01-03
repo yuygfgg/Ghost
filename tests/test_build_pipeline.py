@@ -72,6 +72,8 @@ def test_run_build_pipeline_exports_content_and_index(db_url, tmp_path, monkeypa
     monkeypatch.setenv("GHOST_DB_PATH", db_url)
     monkeypatch.setenv("GHOST_SITE_WORKDIR", str(workdir))
     monkeypatch.setenv("GHOST_ENABLE_SCHEDULER", "0")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", str(tmp_path / "magnet-metadata"))
     rebind_engine_for_test(db_url)
     resource_id = seed_data()
 
@@ -161,6 +163,8 @@ def test_integrated_mode_mounts_public_site(db_url, tmp_path, monkeypatch):
     monkeypatch.setenv("GHOST_SITE_WORKDIR", str(workdir))
     monkeypatch.setenv("GHOST_DEPLOY_MODE", "integrated")
     monkeypatch.setenv("GHOST_ENABLE_SCHEDULER", "0")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", str(tmp_path / "magnet-metadata"))
     app = rebind_engine_for_test(db_url)
 
     client = TestClient(app)
@@ -176,6 +180,8 @@ def test_full_flow_invite_and_build(db_url, tmp_path, monkeypatch):
     monkeypatch.setenv("GHOST_SITE_WORKDIR", str(workdir))
     monkeypatch.setenv("GHOST_DEPLOY_MODE", "integrated")
     monkeypatch.setenv("GHOST_ENABLE_SCHEDULER", "0")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", str(tmp_path / "magnet-metadata"))
     app = rebind_engine_for_test(db_url)
 
     from packages.core.auth import Role, hash_token

@@ -53,13 +53,14 @@
                 d="M5 13a7 7 0 1 1 14 0V6a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4a3 3 0 0 1-6 0V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v7z" />
         </svg>
         <div class="magnet-link">{{ .Params.magnet_uri }}</div>
-        <a href="{{ .Params.magnet_uri | safeURL }}" class="btn-icon" title="Open Magnet">
+        <a href="{{ .Params.magnet_uri | safeURL }}" class="magnet-action" title="Open Magnet" aria-label="Open Magnet">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                 <polyline points="15 3 21 3 21 9"></polyline>
                 <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
+            <span>打开</span>
         </a>
     </div>
 
@@ -81,6 +82,17 @@
                 end }}
             </p>
         </div>
+        {{ with .Params.total_size_human }}
+        <div class="info-item">
+            <h3>Size</h3>
+            <p>
+                {{ . }}
+                {{ with $.Params.file_count }}<span
+                    style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">{{ . }} files</span>{{
+                end }}
+            </p>
+        </div>
+        {{ end }}
         {{ if .Params.tags }}
         <div class="info-item" style="grid-column: 1 / -1;">
             <h3>Tags</h3>
@@ -93,6 +105,13 @@
         </div>
         {{ end }}
     </div>
+
+    {{ with .Params.files_tree }}
+    <details class="file-tree-inline file-list">
+        <summary>Files</summary>
+        {{ partial "filetree.html" (dict "nodes" .) }}
+    </details>
+    {{ end }}
 
     <div class="content" style="margin-top: 2rem; font-size: 1.0625rem; line-height: 1.7;">
         {{ .Content }}

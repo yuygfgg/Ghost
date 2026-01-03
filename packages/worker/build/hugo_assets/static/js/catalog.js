@@ -41,9 +41,18 @@
         const title = escapeHtml(item.title || "");
         const url = item.url || "#";
         const magnet = item.magnet_uri || "";
+        const size = item.total_size_human || "";
+        const fileCount = item.file_count != null ? Number(item.file_count) : null;
+        const filesSummary = item.files_tree_summary || "";
         const tags = Array.isArray(item.tags) ? item.tags.slice(0, 5) : [];
         const tagHtml = tags.length
             ? `<div class="resource-tags">${tags.map((t) => `<a class="tag" href="/tags/${encodeURIComponent(t)}/">${escapeHtml(t)}</a>`).join("")}</div>`
+            : "";
+        const sizeHtml = size
+            ? `<div class="resource-meta"><span class="meta-size">${escapeHtml(size)}</span>${fileCount != null ? `<span class="meta-count">· ${escapeHtml(fileCount)} files</span>` : ""}</div>`
+            : "";
+        const filesHtml = filesSummary
+            ? `<details class="file-tree-inline"><summary>Files</summary><div class="resource-files">${escapeHtml(filesSummary)}</div></details>`
             : "";
         const dlHtml = magnet
             ? `<a class="btn-icon" href="${escapeHtml(magnet)}" title="Magnet Link">
@@ -61,6 +70,8 @@
             <td class="cell-title">
               <a class="resource-title" href="${url}">${title}</a>
               ${tagHtml}
+              ${sizeHtml}
+              ${filesHtml}
             </td>
             <td style="text-align: center;">${dlHtml}</td>
           </tr>

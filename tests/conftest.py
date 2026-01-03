@@ -26,6 +26,12 @@ def db_url() -> Iterator[str]:
         yield f"sqlite:///{tmpdir}/test.db"
 
 
+@pytest.fixture(scope="function")
+def magnet_metadata_dir() -> Iterator[str]:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
+
+
 def rebind_engine(db_url: str):
     # Reload engine/session makers with a fresh SQLite URL.
     import importlib
@@ -42,8 +48,10 @@ def rebind_engine(db_url: str):
 
 
 @pytest.fixture(scope="function")
-def test_client(db_url: str, monkeypatch):
+def test_client(db_url: str, magnet_metadata_dir: str, monkeypatch):
     monkeypatch.setenv("GHOST_DB_PATH", db_url)
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", magnet_metadata_dir)
     app_instance = rebind_engine(db_url)
     client = TestClient(app_instance)
     yield client

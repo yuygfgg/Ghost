@@ -90,8 +90,13 @@ def localize_cover_images(
             continue
 
         if resource.cover_image_path:
-            # If already localized, nothing to do.
-            continue
+            # If already localized and file exists in the current site workdir, nothing to do.
+            existing = repo.static_dir / resource.cover_image_path
+            if existing.exists():
+                continue
+            # DB points to a missing file. Re-localize.
+            resource.cover_image_path = None
+            session.add(resource)
 
         try:
             downloaded = fetch(url, timeout_s)

@@ -49,6 +49,15 @@ def ensure_hugo_scaffold(repo: SiteRepo, base_url: str = "/") -> None:
         (layouts_src / "single.html").read_text(encoding="utf-8"),
     )
 
+    # Partials
+    partials_src = assets_root / "layouts" / "partials"
+    if partials_src.exists():
+        for partial in partials_src.glob("*.html"):
+            _write_if_changed(
+                repo.layouts_dir / "partials" / partial.name,
+                partial.read_text(encoding="utf-8"),
+            )
+
     # Static Assets
     _write_if_changed(
         repo.static_dir / "css" / "main.css",

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -52,6 +54,14 @@ class ResourceUpdate(BaseModel):
     team_id: Optional[int] = None
 
 
+class FileTreeNode(BaseModel):
+    name: str
+    type: Literal["dir", "file"]
+    size_bytes: int = 0
+    file_count: Optional[int] = None
+    children: Optional[List[FileTreeNode]] = None
+
+
 class ResourceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,10 +78,27 @@ class ResourceResponse(BaseModel):
     team_id: Optional[int]
     dht_status: str
     last_dht_check: Optional[datetime]
+    total_size_bytes: Optional[int] = None
+    total_size_human: Optional[str] = None
+    file_count: Optional[int] = None
+    files_tree_summary: Optional[str] = None
+    files_tree: Optional[List[FileTreeNode]] = None
     created_at: datetime
     updated_at: datetime
     published_at: datetime
     takedown_at: Optional[datetime]
+
+
+class ResourceMetadataResponse(BaseModel):
+    magnet_hash: str
+    total_size_bytes: int
+    total_size_human: Optional[str] = None
+    file_count: int
+    files_tree_summary: str = ""
+    files_tree: List[FileTreeNode] = Field(default_factory=list)
+    num_peers: int = 0
+    fetched_at: Optional[str] = None
+    backend: Optional[str] = None
 
 
 class CategoryCreate(BaseModel):

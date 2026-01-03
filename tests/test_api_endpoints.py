@@ -90,6 +90,56 @@ def test_resource_crud_scope(test_client: TestClient, seeded_tokens):
     assert res.json()["takedown_at"] is not None
 
 
+def test_resource_create_requires_active_magnet(test_client: TestClient, seeded_tokens):
+    category_id = seed_categories()
+    payload = {
+        "title": "Stale Resource",
+        "magnet_uri": "magnet:?xt=urn:btih:stale123",
+        "content_markdown": "hello",
+        "cover_image_url": None,
+        "tags": [],
+        "category_id": category_id,
+        "team_id": None,
+    }
+    res = test_client.post(
+        "/api/resources", headers=auth_header(seeded_tokens["publisher"]), json=payload
+    )
+    assert res.status_code == 400
+
+
+def test_resource_metadata_api(test_client: TestClient, seeded_tokens):
+    category_id = seed_categories()
+    payload = {
+        "title": "Meta Resource",
+        "magnet_uri": "magnet:?xt=urn:btih:abc123",
+        "content_markdown": "hello",
+        "cover_image_url": None,
+        "tags": ["a"],
+        "category_id": category_id,
+        "team_id": None,
+    }
+    res = test_client.post(
+        "/api/resources", headers=auth_header(seeded_tokens["publisher"]), json=payload
+    )
+    assert res.status_code == 201
+    created = res.json()
+    rid = created["id"]
+    assert created["total_size_bytes"] == 579
+    assert created["file_count"] == 2
+    assert created["files_tree"]
+
+    meta = test_client.get(
+        f"/api/resources/{rid}/metadata",
+        headers=auth_header(seeded_tokens["publisher"]),
+    )
+    assert meta.status_code == 200
+    data = meta.json()
+    assert data["magnet_hash"] == "abc123"
+    assert data["total_size_bytes"] == 579
+    assert data["file_count"] == 2
+    assert data["files_tree"]
+
+
 def test_team_invite_and_scope(test_client: TestClient, seeded_tokens):
     # Create team via publisher
     res = test_client.post(

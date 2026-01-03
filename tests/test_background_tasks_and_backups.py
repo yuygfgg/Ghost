@@ -155,6 +155,36 @@ def test_cover_localization_writes_static_file_and_sets_db_path(
         assert localize_cover_images(session, repo, fetch=fake_fetch) == 0
 
 
+def test_cover_localization_relocalizes_when_file_missing(
+    test_client, tmp_path, monkeypatch
+):
+    resource_id = _seed_minimal_resource(
+        cover_image_url="https://example.com/a.png",
+        cover_image_path="assets/covers/missing.png",
+    )
+    repo = SiteRepo(tmp_path / "site")
+    repo.ensure_base()
+
+    def fake_fetch(url: str, timeout_s: int) -> DownloadedFile:
+        return DownloadedFile(content=_ONE_BY_ONE_PNG, content_type="image/png")
+
+    monkeypatch.setattr(
+        "packages.worker.build.covers._maybe_convert_to_webp", lambda raw: None
+    )
+
+    with session_scope() as session:
+        updated = localize_cover_images(session, repo, fetch=fake_fetch)
+        assert updated == 1
+
+    with session_scope() as session:
+        res = session.get(Resource, resource_id)
+        assert res.cover_image_path == f"assets/covers/{resource_id}.png"
+
+    out_path = repo.static_dir / "assets" / "covers" / f"{resource_id}.png"
+    assert out_path.exists()
+    assert out_path.read_bytes() == _ONE_BY_ONE_PNG
+
+
 def test_cover_localization_prefers_webp_when_converter_returns_bytes(
     test_client, tmp_path, monkeypatch
 ):

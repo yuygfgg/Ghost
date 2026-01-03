@@ -34,9 +34,27 @@ def test_detail_page_uses_local_datetime_rendering(tmp_path):
     )
     assert 'class="local-datetime"' in template
     assert _has_go_date_format(template, "2006-01-02T15:04:05Z07:00")
+    assert "filetree.html" in template
+    assert "<details" in template
 
     relative_time_js = (repo.static_dir / "js" / "relative-time.js").read_text(
         encoding="utf-8"
     )
     assert 'Intl.DateTimeFormat("sv-SE"' in relative_time_js
     assert "raw.trim()" in relative_time_js
+
+
+def test_hugo_scaffold_includes_partials(tmp_path):
+    repo = SiteRepo(tmp_path / "site")
+    ensure_hugo_scaffold(repo)
+    partial = repo.layouts_dir / "partials" / "filetree.html"
+    assert partial.exists()
+
+
+def test_js_listings_render_files_collapsible(tmp_path):
+    repo = SiteRepo(tmp_path / "site")
+    ensure_hugo_scaffold(repo)
+    search_js = (repo.static_dir / "js" / "search.js").read_text(encoding="utf-8")
+    catalog_js = (repo.static_dir / "js" / "catalog.js").read_text(encoding="utf-8")
+    assert "<details" in search_js and "file-tree-inline" in search_js
+    assert "<details" in catalog_js and "file-tree-inline" in catalog_js

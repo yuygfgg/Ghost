@@ -1,0 +1,24 @@
+{{- $nodes := .nodes -}}
+{{- if not $nodes -}}
+{{- else -}}
+<ul class="file-tree">
+    {{- range $nodes -}}
+    <li>
+        {{- if eq .type "dir" -}}
+        <details class="file-tree-dir">
+            <summary>
+                <span class="name">{{ .name }}</span>
+                <span class="meta">{{ default 0 .file_count }} files · {{ default "" .size_human }}</span>
+            </summary>
+            {{ partial "filetree.html" (dict "nodes" .children) }}
+        </details>
+        {{- else -}}
+        <div class="file-tree-file">
+            <span class="name">{{ .name }}</span>
+            <span class="meta">{{ default "" .size_human }}</span>
+        </div>
+        {{- end -}}
+    </li>
+    {{- end -}}
+</ul>
+{{- end -}}

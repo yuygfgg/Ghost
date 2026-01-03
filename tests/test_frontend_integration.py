@@ -57,6 +57,8 @@ def test_public_site_end_to_end(tmp_path, monkeypatch):
     monkeypatch.setenv("GHOST_SITE_WORKDIR", str(workdir))
     monkeypatch.setenv("GHOST_DEPLOY_MODE", "integrated")
     monkeypatch.setenv("GHOST_ENABLE_SCHEDULER", "0")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", str(tmp_path / "magnet-metadata"))
 
     # Initial app to use API for data creation.
     app = rebind_engine_for_test(db_url)
@@ -184,6 +186,8 @@ def test_taxonomy_pages_and_data(tmp_path, monkeypatch):
     monkeypatch.setenv("GHOST_SITE_WORKDIR", str(workdir))
     monkeypatch.setenv("GHOST_DEPLOY_MODE", "integrated")
     monkeypatch.setenv("GHOST_ENABLE_SCHEDULER", "0")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_BACKEND", "mock")
+    monkeypatch.setenv("GHOST_MAGNET_METADATA_DIR", str(tmp_path / "magnet-metadata"))
 
     app = rebind_engine_for_test(db_url)
     with session_scope() as session:

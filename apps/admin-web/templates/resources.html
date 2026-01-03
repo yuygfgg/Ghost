@@ -73,6 +73,7 @@
         const resetBtn = document.getElementById("reset-form");
         const previewEl = document.getElementById("markdown-preview");
         const teamInput = document.getElementById("team_id");
+        const submitBtn = form.querySelector('button[type="submit"]');
 
         const field = (id) => document.getElementById(id);
         let resources = [];
@@ -80,6 +81,29 @@
         let editingId = null;
         let principal = null;
         let teams = [];
+        let busy = false;
+
+        function applyRoleConstraints() {
+            if (principal?.role === "TeamMember" && principal.scope_team_id) {
+                field("team_id").value = principal.scope_team_id;
+                field("team_id").disabled = true;
+            }
+        }
+
+        function setBusy(isBusy, message) {
+            busy = Boolean(isBusy);
+            const inputs = form.querySelectorAll("input, textarea, select, button");
+            inputs.forEach((el) => {
+                el.disabled = busy;
+            });
+            if (resetBtn) resetBtn.disabled = busy;
+            if (filterEl) filterEl.disabled = busy;
+            rowsEl.querySelectorAll("button[data-edit]").forEach((el) => {
+                el.disabled = busy;
+            });
+            if (message) GhostAdmin.showStatus(statusEl, message, "info");
+            if (!busy) applyRoleConstraints();
+        }
 
         function renderPreview() {
             const text = field("content_markdown").value;
@@ -166,12 +190,8 @@
             formTitle.textContent = "新建资源";
             form.reset();
             renderPreview();
-            if (principal?.role === "TeamMember" && principal.scope_team_id) {
-                field("team_id").value = principal.scope_team_id;
-                field("team_id").disabled = true;
-            } else {
-                field("team_id").disabled = false;
-            }
+            field("team_id").disabled = false;
+            applyRoleConstraints();
         }
 
         function fillForm(res) {
@@ -195,6 +215,7 @@
         }
 
         rowsEl.addEventListener("click", (e) => {
+            if (busy) return;
             const btn = e.target.closest("[data-edit]");
             if (!btn) return;
             const id = Number(btn.dataset.edit);
@@ -209,6 +230,7 @@
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
             if (!principal) return;
+            if (busy) return;
             const payload = {
                 title: field("title").value.trim(),
                 magnet_uri: field("magnet_uri").value.trim(),
@@ -224,6 +246,7 @@
                 return;
             }
             try {
+                setBusy(true, "正在验证磁力链并解析元数据...");
                 if (editingId) {
                     await GhostAdmin.apiFetch(`/api/resources/${editingId}`, {
                         method: "PUT",
@@ -241,6 +264,8 @@
                 resetFormFields();
             } catch (err) {
                 GhostAdmin.showStatus(statusEl, err.data || "保存失败", "error");
+            } finally {
+                setBusy(false);
             }
         });
 

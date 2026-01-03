@@ -31,6 +31,7 @@
             <tbody id="search-results">
                 {{ $p := .Paginator }}
                 {{ range $p.Pages }}
+                {{ $page := . }}
                 <tr>
                     <td>
                         <div class="meta-publisher">{{ .Params.publisher }}</div>
@@ -48,6 +49,18 @@
                             <a class="tag" href="/tags/{{ $t }}/">{{ . }}</a>
                             {{ end }}
                         </div>
+                        {{ end }}
+                        {{ with $page.Params.total_size_human }}
+                        <div class="resource-meta">
+                            <span class="meta-size">{{ . }}</span>
+                            {{ with $page.Params.file_count }}<span class="meta-count">· {{ . }} files</span>{{ end }}
+                        </div>
+                        {{ end }}
+                        {{ with $page.Params.files_tree }}
+                        <details class="file-tree-inline">
+                            <summary>Files</summary>
+                            {{ partial "filetree.html" (dict "nodes" .) }}
+                        </details>
                         {{ end }}
                     </td>
                     <td style="text-align: center;">

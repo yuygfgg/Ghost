@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from apps.api import schemas
 from apps.api.deps import get_db, get_principal, require_roles
 from packages.core import magnet
+from packages.core.magnet_metadata import (
+    MagnetInactiveError,
+    MagnetMetadataStore,
+    MagnetMetadataUnavailableError,
+    probe_and_store_magnet_metadata,
+)
 from packages.core.auth import Role, assert_resource_scope
 from packages.db import Category, Resource, Team, ensure_build_state
 
@@ -15,6 +21,7 @@ router = APIRouter(prefix="/resources", tags=["resources"])
 
 
 def _serialize_resource(resource: Resource) -> schemas.ResourceResponse:
+    meta = MagnetMetadataStore().load(resource.magnet_hash) or {}
     tags = []
     if resource.tags_json:
         try:
@@ -35,6 +42,11 @@ def _serialize_resource(resource: Resource) -> schemas.ResourceResponse:
         team_id=resource.team_id,
         dht_status=resource.dht_status,
         last_dht_check=resource.last_dht_check,
+        total_size_bytes=meta.get("total_size_bytes"),
+        total_size_human=meta.get("total_size_human"),
+        file_count=meta.get("file_count"),
+        files_tree_summary=meta.get("files_tree_summary"),
+        files_tree=meta.get("files_tree"),
         created_at=resource.created_at,
         updated_at=resource.updated_at,
         published_at=resource.published_at,
@@ -123,6 +135,17 @@ def create_resource(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Team not found"
             )
 
+    try:
+        probe_and_store_magnet_metadata(payload.magnet_uri)
+    except MagnetInactiveError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except MagnetMetadataUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        )
+
     tags_json = json.dumps(payload.tags or [])
     resource = Resource(
         title=payload.title,
@@ -134,6 +157,8 @@ def create_resource(
         category_id=payload.category_id,
         publisher_token_hash=principal.token_hash,
         team_id=team_id,
+        dht_status="Active",
+        last_dht_check=datetime.now(timezone.utc),
         published_at=payload.published_at or datetime.now(timezone.utc),
     )
     session.add(resource)
@@ -171,7 +196,23 @@ def update_resource(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
             )
+        try:
+            probe_and_store_magnet_metadata(payload.magnet_uri)
+        except MagnetInactiveError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            )
+        except MagnetMetadataUnavailableError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            )
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+            )
         resource.magnet_uri = payload.magnet_uri
+        resource.dht_status = "Active"
+        resource.last_dht_check = datetime.now(timezone.utc)
     if payload.content_markdown is not None:
         resource.content_markdown = payload.content_markdown
     if payload.cover_image_url is not None:
@@ -235,3 +276,29 @@ def takedown_resource(
     session.commit()
     session.refresh(resource)
     return _serialize_resource(resource)
+
+
+@router.get("/{resource_id}/metadata", response_model=schemas.ResourceMetadataResponse)
+def get_resource_metadata(
+    resource_id: int,
+    session: Session = Depends(get_db),
+    principal=Depends(get_principal),
+):
+    resource = session.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
+        )
+    try:
+        assert_resource_scope(
+            principal, resource.team_id, resource.publisher_token_hash
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    meta = MagnetMetadataStore().load(resource.magnet_hash)
+    if not meta:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Metadata not found"
+        )
+    return meta

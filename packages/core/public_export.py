@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Dict, Iterable, Optional
 
+from packages.core.magnet_metadata import MagnetMetadataStore
 from packages.db import Auth, Category, Resource
 
 
@@ -66,6 +67,7 @@ def resource_to_public(
     category_info = category_paths.get(resource.category_id)
     publishers = publishers or {a.token_hash: a.display_name for a in auth_records}
     tags = parse_tags(resource)
+    meta = MagnetMetadataStore().load(resource.magnet_hash) or {}
 
     # NOTE: public exports must not leak sensitive/private upstream URLs.
     # cover_image_url stays in the private DB but is intentionally omitted from public output.
@@ -85,6 +87,11 @@ def resource_to_public(
         "team_id": resource.team_id,
         "dht_status": resource.dht_status,
         "last_dht_check": resource.last_dht_check,
+        "total_size_bytes": meta.get("total_size_bytes"),
+        "total_size_human": meta.get("total_size_human"),
+        "file_count": meta.get("file_count"),
+        "files_tree": meta.get("files_tree"),
+        "files_tree_summary": meta.get("files_tree_summary"),
         "published_at": resource.published_at,
         "created_at": resource.created_at,
         "updated_at": resource.updated_at,
