@@ -83,6 +83,13 @@ Resources are private-scoped by role:
 - `Publisher`: sees only their own resources
 - `TeamMember`: sees only resources in their team
 
+Resource objects may include optional Magnet metadata fields when available:
+
+- `total_size_bytes`, `total_size_human`
+- `file_count`
+- `files_tree_summary`
+- `files_tree` (nested tree of dirs/files)
+
 #### `GET /api/resources`
 
 List resources in the current principal’s scope.
@@ -101,6 +108,8 @@ Errors:
 #### `POST /api/resources` (Publisher / TeamMember / Admin)
 
 Create a resource. `magnet_uri` must be a valid Magnet URL; the server extracts and stores `magnet_hash`.
+
+On create, Ghost also probes the Magnet for liveness and metadata. If the probe fails, the request fails and the resource is not created.
 
 Body:
 
@@ -123,6 +132,11 @@ Notes:
 - For `Publisher`, a non-null `team_id` must refer to a team they own.
 - For `Admin`, a non-null `team_id` must exist.
 
+Errors:
+
+- `400` if the Magnet is not active or metadata could not be retrieved in time
+- `503` if the metadata backend is unavailable (e.g. `libtorrent` not installed)
+
 Response (201): the created resource.
 
 #### `PUT /api/resources/{resource_id}`
@@ -131,7 +145,35 @@ Update a resource (scope-checked).
 
 Body: any subset of fields from create (all optional).
 
+If `magnet_uri` is changed, Ghost re-probes the Magnet and refreshes its stored metadata.
+
 Response (200): updated resource.
+
+#### `GET /api/resources/{resource_id}/metadata`
+
+Return the stored Magnet metadata for a resource (scope-checked).
+
+Errors:
+
+- `404` if the resource is not found
+- `403` if outside scope
+- `404` if metadata is not available for this resource
+
+Response (200):
+
+```json
+{
+  "magnet_hash": "…",
+  "total_size_bytes": 123,
+  "total_size_human": "120.12 MiB",
+  "file_count": 42,
+  "files_tree_summary": "…",
+  "files_tree": [],
+  "num_peers": 0,
+  "fetched_at": "2026-01-01T00:00:00+00:00",
+  "backend": "libtorrent"
+}
+```
 
 #### `POST /api/resources/{resource_id}/takedown` (Admin)
 
