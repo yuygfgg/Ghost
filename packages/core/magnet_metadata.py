@@ -4,12 +4,17 @@ import json
 import os
 import shutil
 import tempfile
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from packages.core.magnet import extract_info_hash
+from packages.libtorrent_utils import (
+    add_magnet,
+    create_dht_session,
+    import_libtorrent,
+    probe_magnet,
+)
 
 
 class MagnetMetadataError(RuntimeError):
@@ -74,36 +79,9 @@ class MockMagnetMetadataFetcher(MagnetMetadataFetcher):
 
 class LibtorrentMagnetMetadataFetcher(MagnetMetadataFetcher):
     def __init__(self) -> None:
-        try:
-            import libtorrent as lt  # type: ignore
-        except Exception as exc:  # pragma: no cover - depends on runtime env
-            raise RuntimeError("libtorrent not installed") from exc
-
+        lt = import_libtorrent()
         self._lt = lt
-        self._session = lt.session()
-
-        try:
-            self._session.listen_on(6881, 6891)
-        except Exception:
-            self._session.listen_on(0, 0)
-
-        settings = {
-            "dht_bootstrap_nodes": os.getenv(
-                "GHOST_DHT_BOOTSTRAP_NODES",
-                "router.bittorrent.com:6881,router.utorrent.com:6881,dht.transmissionbt.com:6881",
-            )
-        }
-        self._session.apply_settings(settings)
-        for host in [
-            "router.bittorrent.com",
-            "router.utorrent.com",
-            "dht.transmissionbt.com",
-        ]:
-            try:
-                self._session.add_dht_router(host, 6881)
-            except Exception:
-                pass
-        self._session.start_dht()
+        self._session = create_dht_session(lt)
 
         tmp_dir = os.getenv("GHOST_MAGNET_TMP_DIR", "var/magnet-tmp")
         self._save_path = Path(tmp_dir)
@@ -114,41 +92,32 @@ class LibtorrentMagnetMetadataFetcher(MagnetMetadataFetcher):
         info_hash = extract_info_hash(magnet_uri)
 
         workdir = tempfile.mkdtemp(prefix="magnet-", dir=str(self._save_path))
-        params = {
-            "save_path": str(workdir),
-            "storage_mode": lt.storage_mode_t.storage_mode_sparse,
-        }
         try:
-            handle = lt.add_magnet_uri(self._session, magnet_uri, params)
+            handle = add_magnet(lt, self._session, magnet_uri, save_path=workdir)
         except Exception:
             try:
                 shutil.rmtree(workdir, ignore_errors=True)
             except Exception:
                 pass
             raise
-        start = time.monotonic()
-        max_peers = 0
         try:
-            while (time.monotonic() - start) < timeout_s:
-                status = handle.status()
-                max_peers = max(max_peers, int(getattr(status, "num_peers", 0) or 0))
-                if handle.has_metadata():
-                    ti = handle.get_torrent_info()
-                    fs = ti.files()
-                    files: list[MagnetFile] = []
-                    total = 0
-                    for i in range(fs.num_files()):
-                        path = fs.file_path(i)
-                        size = int(fs.file_size(i))
-                        total += size
-                        files.append(MagnetFile(path=path, size_bytes=size))
-                    return MagnetMetadata(
-                        magnet_hash=info_hash,
-                        total_size_bytes=total,
-                        files=files,
-                        num_peers=max_peers,
-                    )
-                time.sleep(1)
+            probe = probe_magnet(handle, timeout_s=timeout_s, poll_interval_s=1.0)
+            if probe.got_metadata:
+                ti = handle.get_torrent_info()
+                fs = ti.files()
+                files: list[MagnetFile] = []
+                total = 0
+                for i in range(fs.num_files()):
+                    path = fs.file_path(i)
+                    size = int(fs.file_size(i))
+                    total += size
+                    files.append(MagnetFile(path=path, size_bytes=size))
+                return MagnetMetadata(
+                    magnet_hash=info_hash,
+                    total_size_bytes=total,
+                    files=files,
+                    num_peers=probe.max_peers,
+                )
         finally:
             try:
                 self._session.remove_torrent(handle)
@@ -159,7 +128,7 @@ class LibtorrentMagnetMetadataFetcher(MagnetMetadataFetcher):
             except Exception:
                 pass
 
-        if max_peers > 0:
+        if probe.max_peers > 0:
             raise MagnetMetadataUnavailableError(
                 "Magnet is active but metadata not available yet"
             )
