@@ -91,8 +91,10 @@ def _run_scan_sync(
         checker = checker_factory()
     except Exception as exc:
         logger.warning("DHT checker unavailable: %s", exc)
-        results = [(rid, "Unknown") for rid, _, _, _ in resources]
-        _apply_results(results)
+        fallback_results: list[tuple[int, DhtStatus]] = [
+            (rid, "Unknown") for rid, _, _, _ in resources
+        ]
+        _apply_results(fallback_results)
         return 0
 
     results: list[tuple[int, DhtStatus]] = []

@@ -18,8 +18,8 @@ def get_status(session: Session = Depends(get_db), principal=Depends(get_princip
 
 @router.post("/trigger", response_model=schemas.BuildStateResponse)
 def trigger_build(
+    background: BackgroundTasks,
     reason: str | None = None,
-    background: BackgroundTasks = None,
     session: Session = Depends(get_db),
     principal=Depends(require_roles(Role.ADMIN)),
 ) -> schemas.BuildStateResponse:
@@ -31,6 +31,5 @@ def trigger_build(
     session.commit()
     session.refresh(state)
     # Run build in background to avoid blocking request.
-    if background is not None:
-        background.add_task(run_build_pipeline, True)
+    background.add_task(run_build_pipeline, True)
     return schemas.BuildStateResponse.model_validate(state)

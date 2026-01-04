@@ -1,11 +1,13 @@
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
+from collections.abc import Iterator
+
 from packages.core.auth import Principal, Role, verify_token
 from packages.db import SessionLocal
 
 
-def get_db() -> Session:
+def get_db() -> Iterator[Session]:
     session = SessionLocal()
     try:
         yield session
@@ -14,7 +16,7 @@ def get_db() -> Session:
 
 
 def get_principal(
-    authorization: str = Header(default=None, alias="Authorization"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     session: Session = Depends(get_db),
 ) -> Principal:
     if not authorization or not authorization.lower().startswith("bearer "):

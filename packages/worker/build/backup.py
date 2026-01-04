@@ -60,14 +60,15 @@ def create_age_encrypted_db_backup(
             skipped=True, output_path=None, reason=f"`{age_bin}` not found in PATH"
         )
 
-    db_path_or_url = db_path_or_url or os.getenv("GHOST_DB_PATH", "var/db/ghost.db")
+    db_path_or_url = db_path_or_url or os.getenv("GHOST_DB_PATH") or "var/db/ghost.db"
     db_path = _resolve_sqlite_path(db_path_or_url)
     if not db_path or not db_path.exists():
         return BackupResult(
             skipped=True, output_path=None, reason="SQLite DB file not found"
         )
 
-    backup_dir_path = Path(backup_dir or os.getenv("GHOST_BACKUP_DIR", "var/backups"))
+    backup_dir_value = backup_dir or os.getenv("GHOST_BACKUP_DIR") or "var/backups"
+    backup_dir_path = Path(backup_dir_value)
     backup_dir_path.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
     out = backup_dir_path / f"ghost-db-{ts}.db.age"

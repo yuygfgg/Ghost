@@ -1,12 +1,11 @@
 import logging
-from math import log
 import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.staticfiles import StaticFiles

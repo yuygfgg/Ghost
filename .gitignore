@@ -8,3 +8,4 @@ checks.json
 var/site-workdir/*
 .env
 var/magnet-metadata/*
+.codacy/*

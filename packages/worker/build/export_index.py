@@ -28,10 +28,14 @@ def export_search_index(resources: Iterable[dict], repo: SiteRepo) -> None:
         )
         shards[shard_key].append(item)
 
-    manifest = {"generated_at": datetime.now(timezone.utc).isoformat(), "shards": []}
+    manifest_shards: list[dict[str, object]] = []
+    manifest: dict[str, object] = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "shards": manifest_shards,
+    }
     for shard_key, items in sorted(shards.items()):
         file_name = f"index-{shard_key}.json"
-        manifest["shards"].append(
+        manifest_shards.append(
             {"key": shard_key, "file": file_name, "count": len(items)}
         )
         enriched = [_serialize_item(i) for i in items]

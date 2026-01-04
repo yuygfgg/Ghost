@@ -240,10 +240,9 @@ def file_tree_summary(file_tree: list[dict], max_entries: int = 4) -> str:
 
 class MagnetMetadataStore:
     def __init__(self, base_dir: str | Path | None = None) -> None:
-        base_dir = base_dir or os.getenv(
-            "GHOST_MAGNET_METADATA_DIR", "var/magnet-metadata"
-        )
-        self._base = Path(base_dir)
+        env_dir = os.getenv("GHOST_MAGNET_METADATA_DIR")
+        base = base_dir or env_dir or "var/magnet-metadata"
+        self._base = Path(base)
 
     def path_for(self, magnet_hash: str) -> Path:
         return self._base / f"{magnet_hash}.json"

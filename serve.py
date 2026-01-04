@@ -1,12 +1,15 @@
 import logging
 import os
+from collections.abc import Callable
 
 try:
-    from dotenv import load_dotenv  # type: ignore
+    from dotenv import load_dotenv as _load_dotenv
 except Exception:  # pragma: no cover - optional dependency
-    load_dotenv = None  # type: ignore
+    load_dotenv: Callable[..., object] | None = None
+else:
+    load_dotenv = _load_dotenv
 
-if load_dotenv:
+if load_dotenv is not None:
     load_dotenv()
 
 import uvicorn

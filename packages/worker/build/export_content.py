@@ -121,29 +121,29 @@ def _write_taxonomy_exports(
     index_dir = repo.static_dir / "index"
     index_dir.mkdir(parents=True, exist_ok=True)
 
-    tags = Counter()
+    tags: Counter[str] = Counter()
     for res in resources:
         tags.update(res.get("tags") or [])
+    tags_export: list[dict] = [
+        {"tag": tag, "count": count}
+        for tag, count in sorted(tags.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
     tags_payload = {
         "total_resources": len(resources),
-        "tags": [
-            {"tag": tag, "count": count}
-            for tag, count in sorted(tags.items(), key=lambda kv: (-kv[1], kv[0]))
-        ],
+        "tags": tags_export,
     }
     (index_dir / "tags.json").write_text(
         json.dumps(tags_payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    categories_payload = {
-        "categories": _build_category_tree(categories, resources, category_paths)
-    }
+    category_tree = _build_category_tree(categories, resources, category_paths)
+    categories_payload = {"categories": category_tree}
     (index_dir / "categories.json").write_text(
         json.dumps(categories_payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    _write_tag_pages(repo, tags_payload["tags"])
-    _write_category_pages(repo, categories_payload["categories"])
+    _write_tag_pages(repo, tags_export)
+    _write_category_pages(repo, category_tree)
 
 
 def _write_tag_pages(repo: SiteRepo, tags: list[dict]) -> None:
